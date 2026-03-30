@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { progressApi } from '@/api/endpoints/progress';
 import { nutritionApi } from '@/api/endpoints/nutrition';
@@ -9,9 +9,11 @@ import { WeightLogData, DateRangeParams } from '@/api/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, TrendingUp, Flame, Dumbbell, Target, Calendar, Award } from 'lucide-react';
 import { TimeRangeSelector, TimeRange } from '@/components/features/TimeRangeSelector';
-import { WeightChart } from '@/components/features/charts/WeightChart';
-import { CalorieChart } from '@/components/features/charts/CalorieChart';
-import { WorkoutChart } from '@/components/features/charts/WorkoutChart';
+
+// Lazy load heavy charting components
+const WeightChart = React.lazy(() => import('@/components/features/charts/WeightChart').then(m => ({ default: m.WeightChart })));
+const CalorieChart = React.lazy(() => import('@/components/features/charts/CalorieChart').then(m => ({ default: m.CalorieChart })));
+const WorkoutChart = React.lazy(() => import('@/components/features/charts/WorkoutChart').then(m => ({ default: m.WorkoutChart })));
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -321,7 +323,6 @@ export function Progress() {
         </Card>
       )}
 
-      {/* Charts Section */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -330,41 +331,43 @@ export function Progress() {
           <TabsTrigger value="workouts">Workouts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center bg-muted/20 animate-pulse rounded-xl"><p className="text-muted-foreground animate-pulse">Loading charts...</p></div>}>
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <WeightChart data={displayWeightLogs} isLoading={isLoadingWeight && !activePlan} />
+              <CalorieChart
+                data={displayMealLogs}
+                calorieTarget={activePlan?.results.dailyCalories || user?.goals?.dailyCalories || 2500}
+                isLoading={isLoadingMeals && !activePlan}
+              />
+            </div>
+            <WorkoutChart 
+              data={displayWorkoutLogs} 
+              workoutPlan={displayWorkoutPlan}
+              isLoading={(isLoadingWorkouts || isLoadingWorkoutPlan) && !activePlan} 
+            />
+          </TabsContent>
+
+          <TabsContent value="weight">
             <WeightChart data={displayWeightLogs} isLoading={isLoadingWeight && !activePlan} />
+          </TabsContent>
+
+          <TabsContent value="nutrition">
             <CalorieChart
               data={displayMealLogs}
               calorieTarget={activePlan?.results.dailyCalories || user?.goals?.dailyCalories || 2500}
               isLoading={isLoadingMeals && !activePlan}
             />
-          </div>
-          <WorkoutChart 
-            data={displayWorkoutLogs} 
-            workoutPlan={displayWorkoutPlan}
-            isLoading={(isLoadingWorkouts || isLoadingWorkoutPlan) && !activePlan} 
-          />
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="weight">
-          <WeightChart data={displayWeightLogs} isLoading={isLoadingWeight && !activePlan} />
-        </TabsContent>
-
-        <TabsContent value="nutrition">
-          <CalorieChart
-            data={displayMealLogs}
-            calorieTarget={activePlan?.results.dailyCalories || user?.goals?.dailyCalories || 2500}
-            isLoading={isLoadingMeals && !activePlan}
-          />
-        </TabsContent>
-
-        <TabsContent value="workouts">
-          <WorkoutChart 
-            data={displayWorkoutLogs} 
-            workoutPlan={displayWorkoutPlan}
-            isLoading={(isLoadingWorkouts || isLoadingWorkoutPlan) && !activePlan} 
-          />
-        </TabsContent>
+          <TabsContent value="workouts">
+            <WorkoutChart 
+              data={displayWorkoutLogs} 
+              workoutPlan={displayWorkoutPlan}
+              isLoading={(isLoadingWorkouts || isLoadingWorkoutPlan) && !activePlan} 
+            />
+          </TabsContent>
+        </Suspense>
       </Tabs>
 
       {/* Measurement Logger Section */}

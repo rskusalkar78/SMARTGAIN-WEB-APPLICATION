@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,19 +7,32 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import { Nutrition } from "./pages/Nutrition";
-import { Workout } from "./pages/Workout";
-import { Progress } from "./pages/Progress";
-import MealPlan from "./pages/MealPlan";
-import WorkoutPlan from "./pages/WorkoutPlan";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
+import PageLoader from "@/components/ui/PageLoader";
 
-const queryClient = new QueryClient();
+// Lazy-loaded routes for code splitting
+const Index = React.lazy(() => import("./pages/Index"));
+const Login = React.lazy(() => import("./pages/Login"));
+const Register = React.lazy(() => import("./pages/Register"));
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const Nutrition = React.lazy(() => import("./pages/Nutrition").then(module => ({ default: module.Nutrition })));
+const Workout = React.lazy(() => import("./pages/Workout").then(module => ({ default: module.Workout })));
+const Progress = React.lazy(() => import("./pages/Progress").then(module => ({ default: module.Progress })));
+const MealPlan = React.lazy(() => import("./pages/MealPlan"));
+const WorkoutPlan = React.lazy(() => import("./pages/WorkoutPlan"));
+const Profile = React.lazy(() => import("./pages/Profile"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+
+// Configure QueryClient with performance-focused defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes before considering data stale
+      gcTime: 30 * 60 * 1000, // Keep in cache for 30 mins
+      refetchOnWindowFocus: false, // Prevent aggressive refetching 
+      retry: 2,
+    },
+  },
+});
 
 const App = () => (
   <ErrorBoundary>
@@ -28,56 +42,58 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-              {/* Calculator route will be added when integrating with backend in task 10 */}
+                {/* Calculator route will be added when integrating with backend in task 10 */}
 
-              {/* Protected Routes */}
-              <Route path="/app/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/app/nutrition/log" element={
-                <ProtectedRoute>
-                  <Nutrition />
-                </ProtectedRoute>
-              } />
-              <Route path="/app/workout/log" element={
-                <ProtectedRoute>
-                  <Workout />
-                </ProtectedRoute>
-              } />
-              <Route path="/app/progress" element={
-                <ProtectedRoute>
-                  <Progress />
-                </ProtectedRoute>
-              } />
-              <Route path="/app/nutrition/plan" element={
-                <ProtectedRoute>
-                  <MealPlan />
-                </ProtectedRoute>
-              } />
-              <Route path="/app/workout/plan" element={
-                <ProtectedRoute>
-                  <WorkoutPlan />
-                </ProtectedRoute>
-              } />
-              <Route path="/app/profile" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
+                {/* Protected Routes */}
+                <Route path="/app/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/app/nutrition/log" element={
+                  <ProtectedRoute>
+                    <Nutrition />
+                  </ProtectedRoute>
+                } />
+                <Route path="/app/workout/log" element={
+                  <ProtectedRoute>
+                    <Workout />
+                  </ProtectedRoute>
+                } />
+                <Route path="/app/progress" element={
+                  <ProtectedRoute>
+                    <Progress />
+                  </ProtectedRoute>
+                } />
+                <Route path="/app/nutrition/plan" element={
+                  <ProtectedRoute>
+                    <MealPlan />
+                  </ProtectedRoute>
+                } />
+                <Route path="/app/workout/plan" element={
+                  <ProtectedRoute>
+                    <WorkoutPlan />
+                  </ProtectedRoute>
+                } />
+                <Route path="/app/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
 
-              {/* Additional protected routes will be added in future tasks */}
+                {/* Additional protected routes will be added in future tasks */}
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
