@@ -7,7 +7,7 @@ import { MeasurementLogger } from '@/components/features/MeasurementLogger';
 import { useLogMeasurementMutation } from '@/hooks/useMeasurementLogging';
 import { WeightLogData, DateRangeParams } from '@/api/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, TrendingUp, Flame, Dumbbell, Target, Calendar, Award } from 'lucide-react';
+import { AlertCircle, TrendingUp, Flame, Dumbbell, Calendar } from 'lucide-react';
 import { TimeRangeSelector, TimeRange } from '@/components/features/TimeRangeSelector';
 
 // Lazy load heavy charting components
@@ -159,40 +159,22 @@ export function Progress() {
   const totalPlanDays = (activePlan?.userData?.timeframe || 12) * 7;
   const dailyCaloriesTarget = activePlan?.results?.dailyCalories || user?.goals?.dailyCalories || 2500;
 
-  // --- New Weekly Performance Calculations ---
-  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
-  const currentWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 }); // Sunday
-  
-  const weeklyWorkouts = displayWorkoutLogs.filter(w => {
-    const d = parseISO(w.timestamp);
-    return isWithinInterval(d, { start: currentWeekStart, end: currentWeekEnd });
-  });
-  
-  const plannedWorkoutsPerWeek = activePlan?.workoutPlan?.daysPerWeek || user?.goals?.weeklyGainGoal ? 4 : 3;
-  const sessionsLabel = `${weeklyWorkouts.length} of ${plannedWorkoutsPerWeek} sessions`;
-
-  const weekDayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const weekDays = weekDayNames.map((name, i) => {
-    const day = addDays(currentWeekStart, i);
-    const dateStr = format(day, 'yyyy-MM-dd');
-    const hasWorkout = weeklyWorkouts.some(w => format(parseISO(w.timestamp), 'yyyy-MM-dd') === dateStr);
-    return { name, dateStr, hasWorkout };
+  // --- Minimal Weekly Calculations ---
+  const 周Start = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weeklyStats = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((name, i) => {
+    const d = format(addDays(周Start, i), 'yyyy-MM-dd');
+    const dayLogs = displayMealLogs.filter(m => format(parseISO(m.timestamp), 'yyyy-MM-dd') === d);
+    return {
+      name,
+      done: displayWorkoutLogs.some(w => format(parseISO(w.timestamp), 'yyyy-MM-dd') === d),
+      hit: dayLogs.reduce((s, m) => s + (m.calories || 0), 0) >= dailyCaloriesTarget * 0.9
+    };
   });
 
-  const nutritionWeekDays = weekDayNames.map((name, i) => {
-    const day = addDays(currentWeekStart, i);
-    const dateStr = format(day, 'yyyy-MM-dd');
-    const dailySum = displayMealLogs
-      .filter(m => format(parseISO(m.timestamp), 'yyyy-MM-dd') === dateStr)
-      .reduce((acc: number, m: any) => acc + (m.calories || 0), 0);
-    const isGoalMet = dailySum >= dailyCaloriesTarget * 0.9;
-    return { name, dateStr, dailySum, isGoalMet };
-  });
-
-  const avgCaloriesThisWeek = displayMealLogs.filter(m => {
-    const d = parseISO(m.timestamp);
-    return isWithinInterval(d, { start: currentWeekStart, end: currentWeekEnd });
-  }).reduce((acc: number, m: any) => acc + (m.calories || 0), 0) / (Math.max(1, differenceInDays(new Date(), currentWeekStart) + 1));
+  const sessionsDone = weeklyStats.filter(s => s.done).length;
+  const planned = activePlan?.workoutPlan?.daysPerWeek || (user?.goals?.weeklyGainGoal ? 4 : 3);
+  const avgCals = displayMealLogs.filter(m => isWithinInterval(parseISO(m.timestamp), { start: 周Start, end: endOfWeek(new Date(), { weekStartsOn: 1 }) }))
+    .reduce((s, m) => s + (m.calories || 0), 0) / (differenceInDays(new Date(), 周Start) + 1);
 
   return (
     <div className="space-y-8 pb-10">
@@ -229,24 +211,19 @@ export function Progress() {
           {/* Workout Performance Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Workout Performance</CardTitle>
+              <CardTitle className="text-sm font-medium">Workout Consistency</CardTitle>
               <Dumbbell className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{sessionsLabel}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Completed this week
-              </p>
+              <div className="text-2xl font-bold">{sessionsDone} of {planned} sessions</div>
+              <p className="text-xs text-muted-foreground mt-1">Completed this week</p>
               <div className="flex justify-between mt-4">
-                {weekDays.map((day, i) => (
+                {weeklyStats.map((day, i) => (
                   <div key={i} className="flex flex-col items-center gap-1">
                     <span className="text-[10px] text-muted-foreground font-medium">{day.name}</span>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] transition-all
-                      ${day.hasWorkout 
-                        ? 'bg-primary text-primary-foreground shadow-sm' 
-                        : 'bg-muted/30 text-muted-foreground border border-dashed border-muted'}`}
-                    >
-                      {day.hasWorkout ? '✓' : ''}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] 
+                      ${day.done ? 'bg-primary text-primary-foreground' : 'bg-muted/30 text-muted-foreground border border-dashed'}`}>
+                      {day.done ? '✓' : ''}
                     </div>
                   </div>
                 ))}
@@ -257,24 +234,19 @@ export function Progress() {
           {/* Nutrition Performance Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Nutrition Performance</CardTitle>
+              <CardTitle className="text-sm font-medium">Nutrition Tracking</CardTitle>
               <Flame className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{Math.round(avgCaloriesThisWeek).toLocaleString()} kcal</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Daily average this week
-              </p>
+              <div className="text-2xl font-bold">{Math.round(avgCals).toLocaleString()} kcal</div>
+              <p className="text-xs text-muted-foreground mt-1">Daily average this week</p>
               <div className="flex justify-between mt-4">
-                {nutritionWeekDays.map((day, i) => (
+                {weeklyStats.map((day, i) => (
                   <div key={i} className="flex flex-col items-center gap-1">
                     <span className="text-[10px] text-muted-foreground font-medium">{day.name}</span>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] transition-all
-                      ${day.isGoalMet 
-                        ? 'bg-orange-500 text-white shadow-sm' 
-                        : 'bg-muted/30 text-muted-foreground border border-dashed border-muted'}`}
-                    >
-                      {day.isGoalMet ? '🔥' : ''}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] 
+                      ${day.hit ? 'bg-orange-500 text-white' : 'bg-muted/30 text-muted-foreground border border-dashed'}`}>
+                      {day.hit ? '🔥' : ''}
                     </div>
                   </div>
                 ))}
