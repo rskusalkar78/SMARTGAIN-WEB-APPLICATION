@@ -1,4 +1,4 @@
-# 🏋️ SmartGain - Intelligent Weight Gain Planner
+# 🏋️ SmartGain 2026 - Intelligent Weight Gain Planner
 
 > **The most intelligent weight gain planning application of 2026** - Science-backed calorie calculations, personalized macro recommendations, and adaptive workout planning for healthy weight gain.
 

@@ -160,9 +160,9 @@ export function Progress() {
   const dailyCaloriesTarget = activePlan?.results?.dailyCalories || user?.goals?.dailyCalories || 2500;
 
   // --- Minimal Weekly Calculations ---
-  const 周Start = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weeklyStats = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((name, i) => {
-    const d = format(addDays(周Start, i), 'yyyy-MM-dd');
+    const d = format(addDays(weekStart, i), 'yyyy-MM-dd');
     const dayLogs = displayMealLogs.filter(m => format(parseISO(m.timestamp), 'yyyy-MM-dd') === d);
     return {
       name,
@@ -173,8 +173,8 @@ export function Progress() {
 
   const sessionsDone = weeklyStats.filter(s => s.done).length;
   const planned = activePlan?.workoutPlan?.daysPerWeek || (user?.goals?.weeklyGainGoal ? 4 : 3);
-  const avgCals = displayMealLogs.filter(m => isWithinInterval(parseISO(m.timestamp), { start: 周Start, end: endOfWeek(new Date(), { weekStartsOn: 1 }) }))
-    .reduce((s, m) => s + (m.calories || 0), 0) / (differenceInDays(new Date(), 周Start) + 1);
+  const avgCals = displayMealLogs.filter(m => isWithinInterval(parseISO(m.timestamp), { start: weekStart, end: endOfWeek(new Date(), { weekStartsOn: 1 }) }))
+    .reduce((s, m) => s + (m.calories || 0), 0) / (differenceInDays(new Date(), weekStart) + 1);
 
   return (
     <div className="space-y-8 pb-10">
